@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.spatial.transform import Rotation
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import JointState
@@ -110,7 +111,7 @@ class forward_kinematic_solver(Node): # Forward Kinematics Solver Subscriber
             self.get_logger().warn('Missing arm joints in /joint_states', throttle_duration_sec=2.0)
             return
 
-        q1, q2, q3, q4 = joints['joint1'], joints['joint2'], joints['joint3'], joints['joint4']
+        q1, q2, q3, q4 = np.degrees(joints['joint1'], joints['joint2'], joints['joint3'], joints['joint4'])
 
 
         # (a, d, theta, alpha) for each link in the manipulator
@@ -123,21 +124,28 @@ class forward_kinematic_solver(Node): # Forward Kinematics Solver Subscriber
         ]       
 
         T, position, _ = end_effector_pose(dh_table, degrees=True) # Manipulator can not control orientation of end effector, so only position output
-        x, y, z = position
+        x, y, z = position / 1000.0  # mm -> m
 
 
         pose = PoseStamped()
         pose.header.stamp = msg.header.stamp   # same time as the joint reading
-        pose.header.frame_id = 'base'         # frame fk is measured from
+        pose.header.frame_id = 'world'         # frame fk is measured from
         pose.pose.position.x = float(x)
         pose.pose.position.y = float(y)
         pose.pose.position.z = float(z)
+
+        # Orientation: rotation part of T -> quaternion to complete pose
+        qx, qy, qz, qw = Rotation.from_matrix(T[:3, :3]).as_quat()
+        pose.pose.orientation.x = float(qx)
+        pose.pose.orientation.y = float(qy)
+        pose.pose.orientation.z = float(qz)
+        pose.pose.orientation.w = float(qw)
 
         self.pose_pub.publish(pose)
         
 
 
-                                
+                  
 # Initializes the class and runs the code in an execution loop
 def main(args=None):
     rclpy.init(args=args)
