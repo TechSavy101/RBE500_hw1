@@ -118,8 +118,8 @@ class forward_kinematic_solver(Node): # Forward Kinematics Solver Subscriber
         # Lengths in mm
         dh_table = [
             (0,      96.326, q1, 90),   # Link 1
-            (130.23, 0,      q2, 0),    # Link 2
-            (124.0,  0,      q3, 0),    # Link 3
+            (128, 0,      q2, 0),    # Link 2
+            (148.0,  0,      q3, 0),    # Link 3
             (133.4,  0,      q4, 0)     # Link 4
         ]       
 
