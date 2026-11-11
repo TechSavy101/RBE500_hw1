@@ -1,0 +1,7 @@
+# Request: desired end-effector pose
+geometry_msgs/Pose target_pose
+---
+# Response: joint positions that achieve it
+float64[] joint_positions
+bool success
+string message
