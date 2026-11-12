@@ -118,11 +118,11 @@ class forward_kinematic_solver(Node): # Forward Kinematics Solver Subscriber
         # Lengths in mm
         offset = np.degrees(np.arctan2(24, 128)) 
         dh_table = [
-            (0,       96.326,  q1,                  90),
-            (130.23,  0,       q2 + offset + 180,    0),
-            (124.0,   0,       q3 + offset + 90,     0),
-            (133.4,   0,       q4,                   0),
-        ]
+            (0,       96.326, q1,                  -90),
+            (130.23,  0,      q2 - (90 - offset),    0),
+            (124.0,   0,      q3 + (90 - offset),    0),
+            (133.4,   0,      q4,                    0),
+            ]
 
         T, position, _ = end_effector_pose(dh_table, degrees=True) # Manipulator can not control orientation of end effector, so only position output
         x, y, z = position / 1000.0  # mm -> m
