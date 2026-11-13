@@ -1,4 +1,3 @@
-import time
 import numpy as np
 import rclpy
 from rclpy.node import Node
@@ -11,8 +10,6 @@ from control_msgs.action import FollowJointTrajectory
 
 GRIPPER_OPEN = -0.01     # joint position when fully open 
 GRIPPER_CLOSED = 0.019   # joint position when fully closed
-GAP_OPEN = 0.075          # finger gap when fully open [m]
-GAP_CLOSED = 0.0         # finger gap when fully closed [m]
 
 
 
@@ -80,7 +77,12 @@ class pl_commander(Node):
 
 
     def open_grab(self, max_effort=1.0):
-        """Open the grabber"""
+        """
+        Open the grabber
+        max_effort is max force gripper may apply (required field but not used)
+
+        Returns True when open false otherwise
+        """
         position = -0.01
 
         if not self.gripper_client.wait_for_server(timeout_sec=5.0):
@@ -110,20 +112,15 @@ class pl_commander(Node):
         return False
 
 
-    def grab_obj(self, obj_diameter, grip_offset=0.005, max_effort=1.0):
+    def grab_obj(self, max_effort=1.0):
         """
         Close grabber on an object
-        obj_diameter is diameter of object [m]
-        grip_offset is extra amount to close the grabber past the object to grip the object [m]
         max_effort is max force gripper may apply (required field but not used)
 
         returns True if the object was grasped, False otherwise.
         """
 
-        grip_width = obj_diameter - grip_offset
-        frac = (grip_width - GAP_CLOSED) / (GAP_OPEN - GAP_CLOSED)# 0 = closed, 1 = open
-        frac = max(0.0, min(1.0, frac))  # keep within the gripper's range
-        position = GRIPPER_CLOSED + frac * (GRIPPER_OPEN - GRIPPER_CLOSED)
+        position = GRIPPER_CLOSED
 
         if not self.gripper_client.wait_for_server(timeout_sec=5.0):
             self.get_logger().error('Gripper action server not available')
@@ -148,7 +145,7 @@ class pl_commander(Node):
             self.get_logger().info(f'Grasped object (fingers at {result.position:.4f})')
             return True
 
-        self.get_logger().warning('Gripper closed fully or got stuck')
+        self.get_logger().warning('Gripper closed fully, no object grasped')
         return False
 
 
@@ -158,21 +155,21 @@ def main():
     node = pl_commander()
     try:
         while rclpy.ok():
-            line = input("Enter X Y Z pitch, diameter, z_off [m m m deg m m] or q to quit: ").strip()
+            line = input("Enter X Y Z pitch, z_off [m m m deg m] or q to quit: ").strip()
             if line.lower() == 'q':
                 break
             try:
-                x, y, z, pitch, diameter, z_off= map(float, line.split())
+                x, y, z, pitch, z_off= map(float, line.split())
 
             except ValueError:
-                print("Please enter four numbers seperated by spaces, e.g. 0.0 2.0 1.5 -90 0.1, 0.3")
+                print("Please enter five numbers seperated by spaces, e.g. 0.0 2.0 1.5 90 0.1")
                 continue
 
             pitch_rad = np.deg2rad(pitch)
             steps_ok = (node.open_grab()                        # open gripper
                 and node.move_arm(x, y, z + z_off, pitch_rad)   # approach above object
                 and node.move_arm(x, y, z, pitch_rad)           # descend
-                and node.grab_obj(diameter)                   # grab
+                and node.grab_obj()                             # grab object
                 and node.move_arm(x, y, z + z_off, pitch_rad))  # lift
 
             if steps_ok:
