@@ -19,15 +19,15 @@ from rclpy.node import Node
 from ik_interfaces.srv import IK
  
  
-# ---- Geometry (mm) ----
-D1 = 96.326                      # base to joint 2 axis
-L2 = math.hypot(128.0, 24.0)     # 130.23, joint 2 -> joint 3 (straight line)
-L3 = 124.0                       # joint 3 -> joint 4
-L4 = 133.4                       # joint 4 -> end effector (ROBOTIS URDF uses 126.0)
-OFF = math.atan2(24.0, 128.0)    # 10.62 deg tilt of the 128/24 link
-PHI0 = math.pi / 2 - OFF         # 79.38 deg
+# Geometry (mm)
+D1 = 96.326                         # base to joint 2 axis
+L2 = math.hypot(128.0, 24.0)        # 130.23, joint 2 -> joint 3 (straight line)
+L3 = 124.0                          # joint 3 -> joint 4
+L4 = 133.4                          # joint 4 -> end effector
+OFFSET = math.atan2(24.0, 128.0)    # tilt of the 128/24 link
+PHI0 = math.pi / 2 - OFFSET         # angle between the upper arm and the horizontal when joint 2 is at zero
  
-# Joint limits (rad) -- check these against your open_manipulator_x xacro
+# Joint limits (rad)
 LIMITS = [
     (-math.pi, math.pi),                 # joint1
     (-0.57 * math.pi, 0.50 * math.pi),   # joint2
@@ -51,7 +51,8 @@ def within_limits(q):
 def pitch_from_quaternion(qx, qy, qz, qw):
     """
     Pitch (rotation about y, positive = gripper tilted down) from a quaternion,
-    using the ZYX (yaw-pitch-roll) convention: pitch = asin(-R[2,0]).
+    using the ZYX (yaw-pitch-roll) convention: 
+    pitch = asin(-R[2,0]).
     For a pure pitch theta: quaternion = (0, sin(theta/2), 0, cos(theta/2)).
     """
     s = 2.0 * (qw * qy - qx * qz)
@@ -70,16 +71,16 @@ def solve_ik(x, y, z, elbow_up=True, pitch=0.0):
     """
     x, y, z = 1000.0 * x, 1000.0 * y, 1000.0 * z     # m -> mm
  
-    # q1 (eq. 9: no lateral offset on this arm)
+    # q1 
     r = math.hypot(x, y)
     q1 = 0.0 if r < 1e-9 else math.atan2(y, x)       # r = 0: waist singularity
  
     # wrist (joint 4) position in the arm plane, relative to joint 2
-    u = r - L4 * math.cos(pitch)                     # horizontal, forward +
-    v = (D1 - z) - L4 * math.sin(pitch)              # vertical, DOWN +
+    u = r - L4 * math.cos(pitch)          # horizontal, forward +
+    v = (D1 - z) - L4 * math.sin(pitch)   # vertical, DOWN +
  
     # planar 2R for the 130.23 / 124 links (eqs. 14-19)
-    c3 = (u * u + v * v - L2 * L2 - L3 * L3) / (2 * L2 * L3)
+    c3 = (u * u + v * v - L2 * L2 - L3 * L3) / (2 * L2 * L3) # law of cos
     if abs(c3) > 1.0 + 1e-9:
         raise ValueError('Unreachable: target outside the workspace')
     c3 = max(-1.0, min(1.0, c3))
@@ -87,7 +88,7 @@ def solve_ik(x, y, z, elbow_up=True, pitch=0.0):
     th3 = math.atan2(s3, c3)
     th2 = math.atan2(v, u) - math.atan2(L3 * s3, L2 + L3 * c3)
  
-    # undo the link offset to get motor angles, then eq. (20)
+    # undo the link offset to get motor angles
     q1 = -q1
     q2 = th2 + PHI0
     q3 = th3 - PHI0
@@ -125,7 +126,7 @@ class IKService(Node):
     def __init__(self):
         super().__init__('ik_service')
  
-        # ros2 run ... --ros-args -p allow_pitch_search:=false  to require the exact pitch
+        # ros2 run ... --ros-args -p allow_pitch_search:=false to require the exact pitch
         self.declare_parameter('allow_pitch_search', True)
  
         self.srv = self.create_service(IK, 'inverse_kinematics', self.ik_callback)
