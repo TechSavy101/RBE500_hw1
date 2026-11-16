@@ -24,4 +24,4 @@ perform service call:
   run pick and lift
     ros2 run pick_and_lift pl_commander
 
-    note: command for pl_commander: 0.175 0.075 0.01 90 0.1
+    note: command for pl_commander: 0.175 0.075 0.01 80 0.12 [x y z pitch z_offset]
