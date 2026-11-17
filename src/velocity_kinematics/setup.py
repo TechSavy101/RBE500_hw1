@@ -24,7 +24,10 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'velocity_kinematics = velocity_kinematics.velocity_kinematics:main'
+            'velocity_kinematics = velocity_kinematics.velocity_kinematics:main',
+            'pos_ref = velocity_kinematics.pos_ref:main',
+            'vel_commander = velocity_kinematics.vel_commander:main'
+
         ],
     },
 )
