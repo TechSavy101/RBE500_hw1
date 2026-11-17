@@ -60,11 +60,13 @@ class VelocityKinematics(Node):
         self.q = np.zeros(4) # To store joint angles
 
         # subscribe to joint state topic and execute joint_cb when message arrives (10 msg queue (buffer))
-        self.joint_sub = self.create_subscription(JointState, '/joint_states', self.joint_cb, 10) 
+        self.create_subscription(JointState, '/joint_states', self.joint_cb, 10) 
 
         # Use created custom service messages, execute function when request is recieved
         self.create_service(JointToEEVel, 'joint_to_ee_vel', self.joint_to_ee_cb)
         self.create_service(EEToJointVel, 'ee_to_joint_vel', self.ee_to_joint_cb)
+
+        self.get_logger().info('Velocity kinematics node ready. Services: /joint_to_ee_vel, /ee_to_joint_vel')
 
     def joint_cb(self, msg):
         joints = dict(zip(msg.name, msg.position))
@@ -74,10 +76,6 @@ class VelocityKinematics(Node):
 
 
     def get_dh_table(self):
-        if not self.joint_sub.wait_for_message(timeout=5.0):
-            self.get_logger().error('joint_states topic not avaliable')
-            return None
-
         q1, q2, q3, q4 = np.degrees(self.q)
         # (a, d, theta, alpha) for each link in the manipulator
         # Lengths in mm
@@ -115,7 +113,7 @@ class VelocityKinematics(Node):
     def ee_to_joint_cb(self, request, response):
         dh_table = self.get_dh_table()
         J = get_jacobian(dh_table)
-        twist = np.zeros((1,6))
+        twist = np.zeros(6)
 
         x_lin_vel = request.ee_vel.linear.x 
         y_lin_vel = request.ee_vel.linear.y 
@@ -126,12 +124,12 @@ class VelocityKinematics(Node):
 
         twist[0] = x_lin_vel
         twist[1] = y_lin_vel
-        twist[3] = z_lin_vel
-        twist[4] = x_ang_vel
-        twist[5] = y_ang_vel
-        twist[6] = z_ang_vel
+        twist[2] = z_lin_vel
+        twist[3] = x_ang_vel
+        twist[4] = y_ang_vel
+        twist[5] = z_ang_vel
 
-        q_dot = np.linalg.ipnv(J) @ twist # J is not square so pseudoinverse
+        q_dot = np.linalg.pinv(J) @ twist # J is not square so pseudoinverse
         response.q_dot = q_dot.tolist()
         return response
 
@@ -139,7 +137,7 @@ class VelocityKinematics(Node):
 def main():
     rclpy.init()
     node = VelocityKinematics()
-    rclpy.spin(Node)
+    rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
 
